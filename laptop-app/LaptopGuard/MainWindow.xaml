@@ -36,8 +36,15 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#202531" BorderBrush="#32394A" BorderThickness="1" CornerRadius="16" Padding="12,6" Margin="0,0,10,0">
+                    <Border Background="#202531" BorderBrush="#32394A" BorderThickness="1" CornerRadius="16" Padding="12,6" Margin="0,0,8,0">
                         <TextBlock x:Name="BatteryBadgeText" Text="Battery: --%" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+                    </Border>
+
+                    <Border x:Name="PhoneLinkPillBorder" Background="#252A36" BorderBrush="#3B4254" BorderThickness="1" CornerRadius="16" Padding="12,6" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="PhoneLinkDot" Width="8" Height="8" Fill="#6B7280" Margin="0,0,7,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="PhoneLinkText" Text="NO PHONE SIGNAL" FontSize="11.5" FontWeight="Bold" Foreground="#D1D5DB" />
+                        </StackPanel>
                     </Border>
 
                     <Border x:Name="StatusPillBorder" Background="#252A36" BorderBrush="#3B4254" BorderThickness="1" CornerRadius="16" Padding="14,6">
@@ -145,6 +152,11 @@
                         <StackPanel>
                             <TextBlock Text="Sleep &amp; Bag Protection" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
 
+                            <CheckBox x:Name="AutoStartOnPhoneCheckBox"
+                                      Content="Auto-start Travel Mode when paired phone scans or connects"
+                                      Checked="AutoStartOnPhoneCheckBox_Changed"
+                                      Unchecked="AutoStartOnPhoneCheckBox_Changed" />
+
                             <CheckBox x:Name="KeepAwakeCheckBox"
                                       Content="Keep laptop awake while Travel Mode runs (screen can stay off)"
                                       Checked="KeepAwakeCheckBox_Changed"
@@ -219,6 +231,15 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Nonce Rotations:" Foreground="{StaticResource TextSecondary}" FontSize="12" />
                                 <TextBlock x:Name="TelemetryRotationsText" Grid.Column="1" Text="0" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource TextPrimary}" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Phone Link:" Foreground="{StaticResource TextSecondary}" FontSize="12" />
+                                <TextBlock x:Name="TelemetryPhoneStatusText" Grid.Column="1" Text="Waiting for phone..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource TextPrimary}" />
                             </Grid>
 
                             <Grid Margin="0,0,0,8">

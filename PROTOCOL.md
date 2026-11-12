@@ -31,12 +31,12 @@ The laptop broadcasts a standard legacy BLE advertisement (fits within the 31-by
 
 | Offset | Size | Field | Description |
 |---:|---:|---|---|
-| `0` | 2 | `magic` | ASCII `"LG"` (`0x4C, 0x47`) |
+| `0` | 2 | `magic` | ASCII `"LG"` (`0x4C, 0x47`) for Laptop → Phone, or `"LA"` (`0x4C, 0x41`) for Phone → Laptop ACK |
 | `2` | 1 | `version` | Protocol version `0x01` |
 | `3` | 8 | `deviceId` | Persistent 8-byte laptop ID |
-| `11` | 1 | `statusFlags` | Bit 0 (`0x01`): Travel Mode Active; Bit 1 (`0x02`): Keep-Awake Enabled; Bit 2 (`0x04`): AC Power Connected |
+| `11` | 1 | `statusFlags` | Laptop: Bit 0 Travel Active, Bit 1 Keep-Awake, Bit 2 AC Power. Phone ACK: Bit 0 Guard Active, Bit 1 Pairing Handshake |
 | `12` | 1 | `batteryPct` | `0..100`, or `0xFF` (`255`) if unavailable |
-| `13` | 4 | `nonce` | Random 4-byte nonce rotated periodically (e.g. every 20 seconds) |
+| `13` | 4 | `nonce` | Random 4-byte nonce rotated periodically |
 | `17` | 6 | `authTag` | First 6 bytes of `HMAC-SHA256(key = secret, message = payload[0..17])` |
 
 ### Why this layout?

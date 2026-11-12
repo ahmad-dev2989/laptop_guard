@@ -64,5 +64,27 @@ public sealed class BeaconPacketTests
         Assert.False(BeaconPacket.TryVerifyAndParse(payload, deviceId, wrongSecret, out _));
         Assert.False(BeaconPacket.TryVerifyAndParse(payload[..^1], deviceId, secret, out _));
     }
+
+    [Fact]
+    public void PhoneAckPacket_IsDistinctFromLaptopBeacon()
+    {
+        var deviceId = RandomNumberGenerator.GetBytes(BeaconPacket.DeviceIdLength);
+        var secret = RandomNumberGenerator.GetBytes(BeaconPacket.SecretLength);
+        var nonce = RandomNumberGenerator.GetBytes(BeaconPacket.NonceLength);
+
+        var phoneAck = BeaconPacket.BuildPayload(
+            deviceId,
+            secret,
+            (BeaconStatusFlags)(PhoneAckFlags.GuardActive | PhoneAckFlags.PairingHandshake),
+            batteryPercent: 75,
+            nonce,
+            magic1: BeaconPacket.PhoneMagic1);
+
+        Assert.False(BeaconPacket.TryVerifyAndParse(phoneAck, deviceId, secret, out _, BeaconPacket.Magic1));
+        Assert.True(BeaconPacket.TryVerifyAndParse(phoneAck, deviceId, secret, out var parsed, BeaconPacket.PhoneMagic1));
+        var ackFlags = (PhoneAckFlags)parsed.Flags;
+        Assert.True(ackFlags.HasFlag(PhoneAckFlags.GuardActive));
+        Assert.True(ackFlags.HasFlag(PhoneAckFlags.PairingHandshake));
+    }
 }
 

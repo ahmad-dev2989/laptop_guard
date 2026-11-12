@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly ProfileStore _profileStore;
     private readonly PowerGuardService _powerGuard;
     private readonly BleAdvertiserService _bleAdvertiser;
+    private readonly PhoneWatcherService _phoneWatcher;
     private readonly TrayIconService _trayIcon;
     private readonly Action _exitCallback;
     private readonly DispatcherTimer _environmentTimer;
@@ -22,12 +23,15 @@ public partial class MainWindow : Window
     private bool _isInitializingUi;
     private bool _isExiting;
     private bool _shownTrayBalloon;
+    private bool _isStartingTravel;
+    private DateTimeOffset _manualStopCooldownUntil = DateTimeOffset.MinValue;
     private string _latestPayloadHex = string.Empty;
 
     public MainWindow(
         ProfileStore profileStore,
         PowerGuardService powerGuard,
         BleAdvertiserService bleAdvertiser,
+        PhoneWatcherService phoneWatcher,
         TrayIconService trayIcon,
         Action exitCallback)
     {
@@ -36,15 +40,17 @@ public partial class MainWindow : Window
         _profileStore = profileStore;
         _powerGuard = powerGuard;
         _bleAdvertiser = bleAdvertiser;
+        _phoneWatcher = phoneWatcher;
         _trayIcon = trayIcon;
         _exitCallback = exitCallback;
 
         _profile = _profileStore.LoadOrCreate();
         _bleAdvertiser.TelemetryUpdated += OnTelemetryUpdated;
+        _phoneWatcher.PhonePresenceChanged += OnPhonePresenceChanged;
 
         _environmentTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(6)
+            Interval = TimeSpan.FromSeconds(4)
         };
         _environmentTimer.Tick += async (_, _) => await RefreshEnvironmentStatusAsync();
 
@@ -60,6 +66,7 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        _phoneWatcher.Start(_profile);
         _environmentTimer.Start();
         await RefreshEnvironmentStatusAsync();
     }
@@ -70,6 +77,7 @@ public partial class MainWindow : Window
         try
         {
             DeviceNameTextBox.Text = _profile.DeviceName;
+            AutoStartOnPhoneCheckBox.IsChecked = _profile.AutoStartOnPhoneConnect;
             KeepAwakeCheckBox.IsChecked = _profile.KeepAwakeDuringTravel;
             MinimizeToTrayCheckBox.IsChecked = _profile.MinimizeToTrayOnClose;
             LaunchOnStartupCheckBox.IsChecked = PowerGuardService.IsStartupEnabled();
@@ -80,6 +88,7 @@ public partial class MainWindow : Window
 
             var qrUri = PairingCode.BuildUri(_profile);
             QrCodeImage.Source = QrImageHelper.GenerateQrBitmap(qrUri);
+            UpdatePhonePresenceUi(_phoneWatcher.CurrentPresence);
         }
         finally
         {
@@ -90,11 +99,13 @@ public partial class MainWindow : Window
     private async Task RefreshEnvironmentStatusAsync()
     {
         UpdateBatteryBadge(PowerGuardService.GetPowerInfo());
+        UpdatePhonePresenceUi(_phoneWatcher.CurrentPresence);
 
         var (readiness, message) = await BleAdvertiserService.CheckBluetoothReadinessAsync();
         if (readiness == BluetoothReadiness.Ready)
         {
             BluetoothWarningBanner.Visibility = Visibility.Collapsed;
+            _phoneWatcher.EnsureRunningIfReady();
         }
         else
         {
@@ -120,23 +131,37 @@ public partial class MainWindow : Window
 
     private async Task ToggleTravelModeAsync()
     {
+        if (_bleAdvertiser.IsRunning)
+        {
+            _manualStopCooldownUntil = DateTimeOffset.UtcNow.AddSeconds(45);
+            await StopTravelModeAsync();
+            return;
+        }
+
+        _manualStopCooldownUntil = DateTimeOffset.MinValue;
+        await StartTravelModeAsync(showPopupOnError: true);
+    }
+
+    private async Task StartTravelModeAsync(bool showPopupOnError)
+    {
+        if (_isStartingTravel || _bleAdvertiser.IsRunning)
+        {
+            return;
+        }
+
+        _isStartingTravel = true;
         ToggleTravelButton.IsEnabled = false;
         try
         {
-            if (_bleAdvertiser.IsRunning)
-            {
-                await _bleAdvertiser.StopAsync();
-                _powerGuard.SetKeepAwake(false);
-                UpdateVisualActiveState(false);
-                return;
-            }
-
             var (readiness, message) = await BleAdvertiserService.CheckBluetoothReadinessAsync();
             if (readiness is BluetoothReadiness.NoAdapter or BluetoothReadiness.LowEnergyUnsupported or BluetoothReadiness.RadioOff)
             {
                 BluetoothWarningText.Text = message;
                 BluetoothWarningBanner.Visibility = Visibility.Visible;
-                MessageBox.Show(this, message, "Bluetooth Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (showPopupOnError)
+                {
+                    MessageBox.Show(this, message, "Bluetooth Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
                 return;
             }
 
@@ -148,11 +173,90 @@ public partial class MainWindow : Window
         {
             _powerGuard.SetKeepAwake(false);
             UpdateVisualActiveState(false);
-            MessageBox.Show(this, $"Could not start Travel Mode:\n{ex.Message}", "Bluetooth Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (showPopupOnError)
+            {
+                MessageBox.Show(this, $"Could not start Travel Mode:\n{ex.Message}", "Bluetooth Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        finally
+        {
+            _isStartingTravel = false;
+            ToggleTravelButton.IsEnabled = true;
+        }
+    }
+
+    private async Task StopTravelModeAsync()
+    {
+        ToggleTravelButton.IsEnabled = false;
+        try
+        {
+            await _bleAdvertiser.StopAsync();
+            _powerGuard.SetKeepAwake(false);
+            UpdateVisualActiveState(false);
         }
         finally
         {
             ToggleTravelButton.IsEnabled = true;
+        }
+    }
+
+    private void OnPhonePresenceChanged(PhonePresence presence)
+    {
+        Dispatcher.BeginInvoke(async () =>
+        {
+            UpdatePhonePresenceUi(presence);
+
+            var shouldAutoStart = _profile.AutoStartOnPhoneConnect &&
+                                  !_bleAdvertiser.IsRunning &&
+                                  (presence.IsPairingHandshake ||
+                                   (presence.GuardActive && DateTimeOffset.UtcNow >= _manualStopCooldownUntil));
+
+            if (shouldAutoStart)
+            {
+                await StartTravelModeAsync(showPopupOnError: false);
+            }
+        });
+    }
+
+    private void UpdatePhonePresenceUi(PhonePresence presence)
+    {
+        if (presence.IsConnected && presence.LastSeenLocal is { } seen)
+        {
+            var ageSec = Math.Max(0, (int)Math.Round((DateTimeOffset.Now - seen).TotalSeconds));
+            PhoneLinkPillBorder.Background = new SolidColorBrush(Color.FromRgb(12, 41, 31));
+            PhoneLinkPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            PhoneLinkDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            PhoneLinkText.Text = $"PHONE CONNECTED ({presence.LastRssi} dBm)";
+            PhoneLinkText.Foreground = new SolidColorBrush(Color.FromRgb(167, 243, 208));
+
+            var modeTag = presence.IsPairingHandshake
+                ? "Paired!"
+                : presence.GuardActive ? "Guard Active" : "Linked";
+            var batTag = presence.PhoneBatteryPercent <= 100 ? $" • Phone {presence.PhoneBatteryPercent}%" : string.Empty;
+            TelemetryPhoneStatusText.Text = $"{modeTag} • {presence.LastRssi} dBm{batTag} • {ageSec}s ago";
+            TelemetryPhoneStatusText.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153));
+        }
+        else if (presence.LastSeenLocal is { } prevSeen)
+        {
+            PhoneLinkPillBorder.Background = new SolidColorBrush(Color.FromRgb(37, 42, 54));
+            PhoneLinkPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 66, 84));
+            PhoneLinkDot.Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+            PhoneLinkText.Text = "PHONE AWAY";
+            PhoneLinkText.Foreground = new SolidColorBrush(Color.FromRgb(209, 213, 219));
+
+            TelemetryPhoneStatusText.Text = $"Last seen at {prevSeen:HH:mm:ss} ({presence.LastRssi} dBm)";
+            TelemetryPhoneStatusText.Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+        }
+        else
+        {
+            PhoneLinkPillBorder.Background = new SolidColorBrush(Color.FromRgb(37, 42, 54));
+            PhoneLinkPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 66, 84));
+            PhoneLinkDot.Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+            PhoneLinkText.Text = "NO PHONE SIGNAL";
+            PhoneLinkText.Foreground = new SolidColorBrush(Color.FromRgb(209, 213, 219));
+
+            TelemetryPhoneStatusText.Text = "Waiting for phone scan or Travel Guard...";
+            TelemetryPhoneStatusText.Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175));
         }
     }
 
@@ -203,6 +307,17 @@ public partial class MainWindow : Window
             StatusPillText.Text = "IDLE";
             StatusPillText.Foreground = new SolidColorBrush(Color.FromRgb(209, 213, 219));
         }
+    }
+
+    private void AutoStartOnPhoneCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializingUi)
+        {
+            return;
+        }
+
+        _profile.AutoStartOnPhoneConnect = AutoStartOnPhoneCheckBox.IsChecked == true;
+        _profileStore.Save(_profile);
     }
 
     private async void KeepAwakeCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -280,8 +395,10 @@ public partial class MainWindow : Window
         _profile = _profileStore.CreateFreshProfile(
             _profile.DeviceName,
             _profile.KeepAwakeDuringTravel,
-            _profile.MinimizeToTrayOnClose);
+            _profile.MinimizeToTrayOnClose,
+            _profile.AutoStartOnPhoneConnect);
         _profileStore.Save(_profile);
+        _phoneWatcher.UpdateProfile(_profile);
         BindProfileToUi();
 
         if (wasRunning)
@@ -364,4 +481,3 @@ public partial class MainWindow : Window
         return string.Join(' ', Enumerable.Range(0, hex.Length / 2).Select(i => hex.Substring(i * 2, 2)));
     }
 }
-

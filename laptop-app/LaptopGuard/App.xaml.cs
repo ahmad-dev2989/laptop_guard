@@ -16,6 +16,7 @@ public partial class App : Application
     private ProfileStore? _profileStore;
     private PowerGuardService? _powerGuard;
     private BleAdvertiserService? _bleAdvertiser;
+    private PhoneWatcherService? _phoneWatcher;
     private TrayIconService? _trayIcon;
     private MainWindow? _mainWindow;
     private bool _isShuttingDown;
@@ -39,9 +40,10 @@ public partial class App : Application
         _profileStore = new ProfileStore();
         _powerGuard = new PowerGuardService();
         _bleAdvertiser = new BleAdvertiserService();
+        _phoneWatcher = new PhoneWatcherService();
         _trayIcon = new TrayIconService();
 
-        _mainWindow = new MainWindow(_profileStore, _powerGuard, _bleAdvertiser, _trayIcon, RequestExit);
+        _mainWindow = new MainWindow(_profileStore, _powerGuard, _bleAdvertiser, _phoneWatcher, _trayIcon, RequestExit);
 
         _trayIcon.OpenRequested += () => Dispatcher.Invoke(ShowMainWindow);
         _trayIcon.ToggleTravelRequested += () => Dispatcher.Invoke(() => _mainWindow.ToggleTravelModeFromTray());
@@ -136,6 +138,7 @@ public partial class App : Application
         }
 
         _powerGuard?.Dispose();
+        _phoneWatcher?.Dispose();
         _trayIcon?.Dispose();
         _activationCts?.Cancel();
         _activationCts?.Dispose();

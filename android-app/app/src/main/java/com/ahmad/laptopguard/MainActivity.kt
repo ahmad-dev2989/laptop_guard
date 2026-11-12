@@ -45,15 +45,18 @@ class MainActivity : ComponentActivity() {
     private var isDndGranted by mutableStateOf(false)
     private var isTestingAlarm by mutableStateOf(false)
     private var testAlarmJob: Job? = null
+    private var pendingPairingHandshake = false
 
     private val requestGuardPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        val missingRequired = requiredBlePermissions().any { results[it] != true && !hasPermission(it) }
+        val missingRequired = requiredScanPermissions().any { results[it] != true && !hasPermission(it) }
         if (missingRequired) {
-            Toast.makeText(this, "Bluetooth permissions are required to track your laptop.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Bluetooth scan permission is required to track your laptop.", Toast.LENGTH_LONG).show()
         } else {
-            GuardForegroundService.startService(this)
+            val isPairing = pendingPairingHandshake
+            pendingPairingHandshake = false
+            GuardForegroundService.startService(this, pairingHandshake = isPairing)
         }
     }
 
@@ -92,7 +95,8 @@ class MainActivity : ComponentActivity() {
                             prefs.savePairedLaptop(laptop)
                             pairedLaptop = laptop
                             showQrScanner = false
-                            Toast.makeText(this, "Paired permanently with ${laptop.deviceName}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Paired with ${laptop.deviceName} — connecting...", Toast.LENGTH_SHORT).show()
+                            ensurePermissionsAndStartGuard(pairingHandshake = true)
                         },
                         onClose = { showQrScanner = false }
                     )
@@ -114,7 +118,8 @@ class MainActivity : ComponentActivity() {
                         onManualPair = { laptop ->
                             prefs.savePairedLaptop(laptop)
                             pairedLaptop = laptop
-                            Toast.makeText(this, "Paired permanently!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Paired — connecting...", Toast.LENGTH_SHORT).show()
+                            ensurePermissionsAndStartGuard(pairingHandshake = true)
                         },
                         onUnpair = {
                             if (runtimeState.serviceRunning) {
@@ -174,7 +179,8 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun ensurePermissionsAndStartGuard() {
+    private fun ensurePermissionsAndStartGuard(pairingHandshake: Boolean = false) {
+        pendingPairingHandshake = pairingHandshake
         val needed = buildList {
             addAll(requiredBlePermissions())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -183,15 +189,28 @@ class MainActivity : ComponentActivity() {
         }.filterNot(::hasPermission)
 
         if (needed.isEmpty()) {
-            GuardForegroundService.startService(this)
+            pendingPairingHandshake = false
+            GuardForegroundService.startService(this, pairingHandshake = pairingHandshake)
         } else {
             requestGuardPermissionsLauncher.launch(needed.toTypedArray())
         }
     }
 
-    private fun requiredBlePermissions(): List<String> {
+    private fun requiredScanPermissions(): List<String> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private fun requiredBlePermissions(): List<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            listOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE
+            )
         } else {
             listOf(Manifest.permission.ACCESS_FINE_LOCATION)
         }

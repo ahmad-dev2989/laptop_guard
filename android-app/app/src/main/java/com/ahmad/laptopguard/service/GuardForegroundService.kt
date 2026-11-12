@@ -47,6 +47,7 @@ class GuardForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var prefs: GuardPreferences
     private lateinit var alarmPlayer: AlarmPlayer
+    private lateinit var phoneBroadcaster: PhoneBeaconBroadcaster
     private lateinit var notificationManager: NotificationManager
 
     private val detector = ProximityDetector()
@@ -67,6 +68,7 @@ class GuardForegroundService : Service() {
             when (state) {
                 BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_TURNING_OFF -> {
                     stopScanning()
+                    phoneBroadcaster.stop()
                     GuardStateHolder.update {
                         it.copy(
                             bluetoothEnabled = false,
@@ -78,6 +80,7 @@ class GuardForegroundService : Service() {
                 BluetoothAdapter.STATE_ON -> {
                     GuardStateHolder.update { it.copy(bluetoothEnabled = true, statusError = null) }
                     startScanning()
+                    pairedLaptop?.let { phoneBroadcaster.start(it, pairingHandshakeBurst = true) }
                 }
             }
         }
@@ -104,6 +107,7 @@ class GuardForegroundService : Service() {
         super.onCreate()
         prefs = GuardPreferences(this)
         alarmPlayer = AlarmPlayer(this)
+        phoneBroadcaster = PhoneBeaconBroadcaster(this, serviceScope)
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         ensureNotificationChannels()
         registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
@@ -152,7 +156,9 @@ class GuardForegroundService : Service() {
             }
         }
 
+        val isPairingBurst = intent?.action == ACTION_START_PAIRED
         startScanning()
+        phoneBroadcaster.start(laptop, pairingHandshakeBurst = isPairingBurst)
         startEvaluationLoop()
         return START_STICKY
     }
@@ -261,8 +267,8 @@ class GuardForegroundService : Service() {
         val filter = ScanFilter.Builder()
             .setManufacturerData(
                 BeaconPacket.COMPANY_ID,
-                BeaconPacket.buildFilterPrefix(laptop.deviceIdBytes()),
-                BeaconPacket.buildFilterMask()
+                BeaconPacket.buildLaptopHeaderPrefix(),
+                BeaconPacket.buildLaptopHeaderMask()
             )
             .build()
 
@@ -300,6 +306,7 @@ class GuardForegroundService : Service() {
     private fun stopGuardAndSelf() {
         evaluatorJob?.cancel()
         stopScanning()
+        phoneBroadcaster.stop()
         alarmPlayer.stop()
         releaseAlarmWakeLock()
         synchronized(detector) { detector.stop() }
@@ -414,6 +421,7 @@ class GuardForegroundService : Service() {
         }
         evaluatorJob?.cancel()
         stopScanning()
+        phoneBroadcaster.stop()
         alarmPlayer.stop()
         releaseAlarmWakeLock()
         serviceScope.cancel()
@@ -424,6 +432,7 @@ class GuardForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "com.ahmad.laptopguard.START"
+        const val ACTION_START_PAIRED = "com.ahmad.laptopguard.START_PAIRED"
         const val ACTION_STOP = "com.ahmad.laptopguard.STOP"
         const val ACTION_ACKNOWLEDGE = "com.ahmad.laptopguard.ACKNOWLEDGE"
         const val ACTION_REFRESH_SETTINGS = "com.ahmad.laptopguard.REFRESH_SETTINGS"
@@ -432,9 +441,9 @@ class GuardForegroundService : Service() {
         private const val CHANNEL_ALARM = "guard_alarm"
         private const val NOTIFICATION_ID = 4201
 
-        fun startService(context: Context) {
+        fun startService(context: Context, pairingHandshake: Boolean = false) {
             val intent = Intent(context, GuardForegroundService::class.java).apply {
-                action = ACTION_START
+                action = if (pairingHandshake) ACTION_START_PAIRED else ACTION_START
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

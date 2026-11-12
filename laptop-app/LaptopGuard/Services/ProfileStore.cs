@@ -58,7 +58,11 @@ public sealed class ProfileStore
     /// <summary>
     /// Generates a brand-new random device ID and secret key (invalidates prior mobile pairings).
     /// </summary>
-    public DeviceProfile CreateFreshProfile(string? deviceName = null, bool keepAwake = true, bool minimizeToTray = true)
+    public DeviceProfile CreateFreshProfile(
+        string? deviceName = null,
+        bool keepAwake = true,
+        bool minimizeToTray = true,
+        bool autoStartOnPhoneConnect = true)
     {
         var deviceId = RandomNumberGenerator.GetBytes(BeaconPacket.DeviceIdLength);
         var secret = RandomNumberGenerator.GetBytes(BeaconPacket.SecretLength);
@@ -71,7 +75,8 @@ public sealed class ProfileStore
             DeviceName = PairingCode.SanitizeName(deviceName ?? Environment.MachineName),
             CreatedUtc = DateTimeOffset.UtcNow,
             KeepAwakeDuringTravel = keepAwake,
-            MinimizeToTrayOnClose = minimizeToTray
+            MinimizeToTrayOnClose = minimizeToTray,
+            AutoStartOnPhoneConnect = autoStartOnPhoneConnect
         };
     }
 

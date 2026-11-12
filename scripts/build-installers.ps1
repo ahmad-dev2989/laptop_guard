@@ -3,14 +3,23 @@ $root = Split-Path -Parent $PSScriptRoot
 $distDir = Join-Path $root 'dist'
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 
+function Assert-LastExit($stepName) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$stepName failed with exit code $LASTEXITCODE"
+    }
+}
+
 Write-Host "=== 1. Building Windows Desktop Setup (laptop guard.setup.exe) ==="
 dotnet test (Join-Path $root 'laptop-app\LaptopGuard.sln')
+Assert-LastExit "dotnet test"
+
 dotnet publish (Join-Path $root 'laptop-app\LaptopGuard\LaptopGuard.csproj') `
     -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=none -p:DebugSymbols=false `
     -o (Join-Path $root 'laptop-app\LaptopGuard\bin\publish-win-x64')
+Assert-LastExit "dotnet publish"
 
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
@@ -22,6 +31,7 @@ if (-not $iscc) {
     throw "Inno Setup 6 (ISCC.exe) not found."
 }
 & $iscc (Join-Path $root 'laptop-app\installer\LaptopGuard.iss')
+Assert-LastExit "Inno Setup"
 
 Write-Host "=== 2. Building Android Mobile Setup (laptop guard mobile.apk) ==="
 $androidBase = Join-Path $env:LOCALAPPDATA 'Android'
@@ -39,7 +49,8 @@ if ($env:JAVA_HOME) {
 $androidDir = Join-Path $root 'android-app'
 Push-Location $androidDir
 try {
-    & .\gradlew.bat testDebugUnitTest assembleDebug
+    & .\gradlew.bat testDebugUnitTest assembleDebug --no-daemon --console=plain
+    Assert-LastExit "Gradle build/test"
 }
 finally {
     Pop-Location
@@ -51,4 +62,3 @@ Copy-Item $apkSrc $apkDst -Force
 
 Write-Host "=== Build Complete ==="
 Get-ChildItem $distDir | Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,2)}}
-

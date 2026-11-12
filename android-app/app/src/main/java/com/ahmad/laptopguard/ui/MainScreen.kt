@@ -446,6 +446,25 @@ private fun PairedLaptopCard(
                         fontFamily = FontFamily.Monospace,
                         color = TextSecondary
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val linkStatusText = when {
+                        !runtimeState.serviceRunning -> "Saved — tap Start Travel Guard to connect"
+                        snap.phase == GuardPhase.SEARCHING -> "Connecting — waiting for laptop signal..."
+                        snap.smoothedRssi != null -> "Connected • Live signal ${snap.smoothedRssi} dBm"
+                        else -> "Monitoring active"
+                    }
+                    val linkStatusColor = when {
+                        !runtimeState.serviceRunning -> TextSecondary
+                        snap.phase == GuardPhase.SAFE -> SafeGreen
+                        snap.phase == GuardPhase.SEARCHING -> AccentOrange
+                        else -> DangerRed
+                    }
+                    Text(
+                        text = linkStatusText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = linkStatusColor
+                    )
                 }
                 IconButton(onClick = onRequestUnpair, enabled = !runtimeState.serviceRunning) {
                     Icon(

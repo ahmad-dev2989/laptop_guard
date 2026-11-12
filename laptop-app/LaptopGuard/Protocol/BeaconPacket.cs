@@ -11,6 +11,14 @@ public enum BeaconStatusFlags : byte
     AcPowerConnected = 1 << 2
 }
 
+[Flags]
+public enum PhoneAckFlags : byte
+{
+    None = 0,
+    GuardActive = 1 << 0,
+    PairingHandshake = 1 << 1
+}
+
 public readonly record struct ParsedBeacon(
     byte Version,
     byte[] DeviceId,
@@ -28,6 +36,7 @@ public static class BeaconPacket
     public const byte ProtocolVersion = 0x01;
     public const byte Magic0 = (byte)'L';
     public const byte Magic1 = (byte)'G';
+    public const byte PhoneMagic1 = (byte)'A';
 
     public const int DeviceIdLength = 8;
     public const int SecretLength = 16;
@@ -44,7 +53,8 @@ public static class BeaconPacket
         ReadOnlySpan<byte> secret,
         BeaconStatusFlags flags,
         byte batteryPercent,
-        ReadOnlySpan<byte> nonce)
+        ReadOnlySpan<byte> nonce,
+        byte magic1 = Magic1)
     {
         if (deviceId.Length != DeviceIdLength)
         {
@@ -63,7 +73,7 @@ public static class BeaconPacket
 
         var payload = new byte[PayloadLength];
         payload[0] = Magic0;
-        payload[1] = Magic1;
+        payload[1] = magic1;
         payload[2] = ProtocolVersion;
         deviceId.CopyTo(payload.AsSpan(3, DeviceIdLength));
         payload[11] = (byte)flags;
@@ -84,7 +94,8 @@ public static class BeaconPacket
         ReadOnlySpan<byte> payload,
         ReadOnlySpan<byte> expectedDeviceId,
         ReadOnlySpan<byte> secret,
-        out ParsedBeacon parsed)
+        out ParsedBeacon parsed,
+        byte expectedMagic1 = Magic1)
     {
         parsed = default;
 
@@ -95,7 +106,7 @@ public static class BeaconPacket
             return false;
         }
 
-        if (payload[0] != Magic0 || payload[1] != Magic1 || payload[2] != ProtocolVersion)
+        if (payload[0] != Magic0 || payload[1] != expectedMagic1 || payload[2] != ProtocolVersion)
         {
             return false;
         }
@@ -126,4 +137,3 @@ public static class BeaconPacket
         return true;
     }
 }
-

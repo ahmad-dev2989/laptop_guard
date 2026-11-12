@@ -25,6 +25,7 @@ object BeaconPacket {
     const val PROTOCOL_VERSION = 0x01
     const val MAGIC_0: Byte = 'L'.code.toByte()
     const val MAGIC_1: Byte = 'G'.code.toByte()
+    const val PHONE_MAGIC_1: Byte = 'A'.code.toByte()
 
     const val DEVICE_ID_LENGTH = 8
     const val SECRET_LENGTH = 16
@@ -38,12 +39,16 @@ object BeaconPacket {
     const val FLAG_KEEP_AWAKE = 1 shl 1
     const val FLAG_AC_POWER = 1 shl 2
 
+    const val PHONE_FLAG_GUARD_ACTIVE = 1 shl 0
+    const val PHONE_FLAG_PAIRING_HANDSHAKE = 1 shl 1
+
     fun buildPayload(
         deviceId: ByteArray,
         secret: ByteArray,
         statusFlags: Int,
         batteryPercent: Int,
-        nonce: ByteArray
+        nonce: ByteArray,
+        magic1: Byte = MAGIC_1
     ): ByteArray {
         require(deviceId.size == DEVICE_ID_LENGTH) { "Device ID must be $DEVICE_ID_LENGTH bytes." }
         require(secret.size == SECRET_LENGTH) { "Secret must be $SECRET_LENGTH bytes." }
@@ -51,7 +56,7 @@ object BeaconPacket {
 
         val payload = ByteArray(PAYLOAD_LENGTH)
         payload[0] = MAGIC_0
-        payload[1] = MAGIC_1
+        payload[1] = magic1
         payload[2] = PROTOCOL_VERSION.toByte()
         deviceId.copyInto(payload, destinationOffset = 3)
         payload[11] = (statusFlags and 0xFF).toByte()
@@ -64,7 +69,14 @@ object BeaconPacket {
     }
 
     /**
-     * Builds the static 11-byte manufacturer prefix used by Android ScanFilter in Bluetooth hardware.
+     * Compact 3-byte hardware ScanFilter prefix ('L','G',0x01) compatible across all Android BLE chipsets.
+     */
+    fun buildLaptopHeaderPrefix(): ByteArray = byteArrayOf(MAGIC_0, MAGIC_1, PROTOCOL_VERSION.toByte())
+
+    fun buildLaptopHeaderMask(): ByteArray = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
+
+    /**
+     * Builds the static 11-byte manufacturer prefix (magic + version + deviceId).
      */
     fun buildFilterPrefix(deviceId: ByteArray): ByteArray {
         require(deviceId.size == DEVICE_ID_LENGTH) { "Device ID must be $DEVICE_ID_LENGTH bytes." }
@@ -84,7 +96,8 @@ object BeaconPacket {
     fun tryVerifyAndParse(
         payload: ByteArray,
         expectedDeviceId: ByteArray,
-        secret: ByteArray
+        secret: ByteArray,
+        expectedMagic1: Byte = MAGIC_1
     ): ParsedBeacon? {
         if (payload.size != PAYLOAD_LENGTH ||
             expectedDeviceId.size != DEVICE_ID_LENGTH ||
@@ -93,7 +106,7 @@ object BeaconPacket {
             return null
         }
 
-        if (payload[0] != MAGIC_0 || payload[1] != MAGIC_1 || (payload[2].toInt() and 0xFF) != PROTOCOL_VERSION) {
+        if (payload[0] != MAGIC_0 || payload[1] != expectedMagic1 || (payload[2].toInt() and 0xFF) != PROTOCOL_VERSION) {
             return null
         }
 
@@ -134,4 +147,3 @@ fun String.hexToBytes(): ByteArray {
 }
 
 fun ByteArray.toHexLower(): String = joinToString("") { "%02x".format(it) }
-

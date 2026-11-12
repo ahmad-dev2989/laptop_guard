@@ -64,6 +64,26 @@ class BeaconPacketTest {
         assertEquals(BeaconPacket.HARDWARE_PREFIX_LENGTH, prefix.size)
         assertEquals(BeaconPacket.HARDWARE_PREFIX_LENGTH, mask.size)
         assertArrayEquals(payload.copyOfRange(0, BeaconPacket.HARDWARE_PREFIX_LENGTH), prefix)
+
+        val headerPrefix = BeaconPacket.buildLaptopHeaderPrefix()
+        assertArrayEquals(payload.copyOfRange(0, 3), headerPrefix)
+    }
+
+    @Test
+    fun phoneAckPacket_usesLaMagicAndVerifies() {
+        val ack = BeaconPacket.buildPayload(
+            deviceId = deviceId,
+            secret = secret,
+            statusFlags = BeaconPacket.PHONE_FLAG_GUARD_ACTIVE or BeaconPacket.PHONE_FLAG_PAIRING_HANDSHAKE,
+            batteryPercent = 88,
+            nonce = nonce,
+            magic1 = BeaconPacket.PHONE_MAGIC_1
+        )
+
+        assertNull(BeaconPacket.tryVerifyAndParse(ack, deviceId, secret, BeaconPacket.MAGIC_1))
+        val parsed = BeaconPacket.tryVerifyAndParse(ack, deviceId, secret, BeaconPacket.PHONE_MAGIC_1)
+        assertNotNull(parsed)
+        assertEquals(88, parsed!!.batteryPercent)
     }
 }
 
