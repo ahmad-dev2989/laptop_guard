@@ -1,36 +1,41 @@
 # Laptop Guard
 
-**Laptop Guard** helps keep your laptop bag from being left behind while traveling by pairing your Windows laptop permanently with your Android phone via QR code and monitoring live Bluetooth Low Energy (BLE) signal strength.
+**Laptop Guard** helps keep your laptop bag from being left behind while traveling by pairing your Windows laptop permanently with your Android phone via QR code and monitoring live Bluetooth Low Energy (BLE) signal strength—ringing a loud alarm even when your phone is on Silent.
 
 > **Status:**
-> - **Phase 1 — Windows Laptop App (`laptop-app/`):** Implemented
-> - **Phase 2 — Android Mobile App (`android-app/`):** Upcoming
+> - **Phase 1 — Windows Laptop App (`laptop-app/`):** Implemented & packaged (`dist/laptop guard.setup.exe`)
+> - **Phase 2 — Android Mobile App (`android-app/`):** Implemented & packaged (`dist/laptop guard mobile.apk`)
+
+## Standalone Setup Files (`dist/`)
+
+Both setup files are fully self-contained and bundle all required runtimes and libraries:
+
+- **Windows Laptop Setup:** `dist/laptop guard.setup.exe` — Installs Laptop Guard cleanly on Windows 10/11 (x64) with Start Menu/Desktop shortcuts and an uninstaller, with no `.NET` runtime installation required.
+- **Android Mobile Setup:** `dist/laptop guard mobile.apk` — Installs Laptop Guard on Android 8.0+ (API 26–35) with Jetpack Compose UI, CameraX, and the bundled offline ML Kit QR scanner included inside the single APK.
 
 ## Repository Structure
 
 ```text
 laptop_guard/
-├── PROTOCOL.md          # Shared QR pairing URI + 23-byte BLE beacon specification
-├── assets/              # App icon source and cropped 512x512 square PNG
-└── laptop-app/
-    ├── LaptopGuard.sln
-    ├── LaptopGuard/     # .NET 8 WPF Windows application
-    └── LaptopGuard.Tests/
+├── PROTOCOL.md                     # Shared QR pairing URI + 23-byte BLE beacon specification
+├── assets/                         # App icon source and cropped 512x512 square PNG
+├── dist/                           # Standalone installers (laptop guard.setup.exe & laptop guard mobile.apk)
+├── scripts/
+│   └── build-installers.ps1        # Runs tests and builds both standalone installers
+├── laptop-app/
+│   ├── LaptopGuard.sln
+│   ├── LaptopGuard/                # .NET 8 WPF Windows application
+│   ├── LaptopGuard.Tests/          # xUnit tests
+│   └── installer/LaptopGuard.iss   # Inno Setup 6 installer script
+└── android-app/
+    ├── app/                        # Kotlin + Jetpack Compose Android application & JUnit tests
+    ├── gradlew / gradlew.bat
+    └── build.gradle.kts
 ```
 
-## Windows Laptop App Features (`laptop-app/`)
-
-- **Permanent QR Pairing:** Generates and persists a unique `deviceId` and `secret` in `%APPDATA%\LaptopGuard\device-profile.json` and displays a QR code (`laptopguard://pair?...`) plus a manual fallback code (`LG1-...`).
-- **BLE Proximity Beacon:** Uses Windows WinRT `BluetoothLEAdvertisementPublisher` to broadcast signed 23-byte Manufacturer Specific Data packets (`Company ID 0xFFFF`, rotated nonce + HMAC-SHA256 tag).
-- **Sleep & Bag Protection:** Includes a Keep-Awake option during Travel Mode, one-click **Turn Screen Off Now**, a quick shortcut to Windows Lid-Close Power Settings, optional Windows startup launch (`--minimized`), and system tray background operation.
-
-## Running & Testing the Laptop App
+## Rebuilding Everything
 
 ```powershell
-# Run unit tests
-dotnet test "laptop-app\LaptopGuard.sln"
-
-# Launch the Windows app
-dotnet run --project "laptop-app\LaptopGuard\LaptopGuard.csproj"
+# Run all Windows & Android tests and regenerate both setup files in dist\
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\build-installers.ps1"
 ```
-
