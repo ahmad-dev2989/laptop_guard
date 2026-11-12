@@ -364,3 +364,4 @@ public partial class MainWindow : Window
         return string.Join(' ', Enumerable.Range(0, hex.Length / 2).Select(i => hex.Substring(i * 2, 2)));
     }
 }
+

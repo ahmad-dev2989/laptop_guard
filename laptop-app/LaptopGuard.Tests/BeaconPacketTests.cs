@@ -65,3 +65,4 @@ public sealed class BeaconPacketTests
         Assert.False(BeaconPacket.TryVerifyAndParse(payload[..^1], deviceId, secret, out _));
     }
 }
+

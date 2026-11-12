@@ -26,3 +26,4 @@ public static class QrImageHelper
         return bitmap;
     }
 }
+

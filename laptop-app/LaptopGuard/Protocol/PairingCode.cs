@@ -166,3 +166,4 @@ public static partial class PairingCode
     [GeneratedRegex(@"[\s-]+")]
     private static partial Regex WhitespaceAndDashesRegex();
 }
+

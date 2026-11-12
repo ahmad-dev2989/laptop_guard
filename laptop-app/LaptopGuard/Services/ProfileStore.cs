@@ -101,3 +101,4 @@ public sealed class ProfileStore
                PairingCode.TryParse(PairingCode.BuildUri(profile), out _);
     }
 }
+

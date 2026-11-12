@@ -33,3 +33,4 @@ dotnet test "laptop-app\LaptopGuard.sln"
 # Launch the Windows app
 dotnet run --project "laptop-app\LaptopGuard\LaptopGuard.csproj"
 ```
+

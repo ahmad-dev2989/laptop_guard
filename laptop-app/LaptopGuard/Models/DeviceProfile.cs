@@ -17,3 +17,4 @@ public sealed class DeviceProfile
 
     public byte[] GetSecretBytes() => Convert.FromHexString(SecretHex);
 }
+

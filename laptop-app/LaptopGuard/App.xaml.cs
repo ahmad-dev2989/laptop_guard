@@ -146,3 +146,4 @@ public partial class App : Application
         Shutdown(0);
     }
 }
+

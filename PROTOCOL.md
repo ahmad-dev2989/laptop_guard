@@ -43,3 +43,4 @@ The laptop broadcasts a standard legacy BLE advertisement (fits within the 31-by
 1. **Survives Windows BLE MAC Randomization:** Windows rotates the advertiser's Bluetooth MAC address, so Android identifies the laptop using the `deviceId` + `authTag` inside the payload rather than the MAC address.
 2. **Hardware `ScanFilter` Compatible:** Bytes `0..10` (`magic + version + deviceId`) never change for a paired laptop, so Android can set a hardware `ScanFilter` on `CompanyId = 0xFFFF` with an 11-byte prefix mask—waking reliably even with the phone screen off.
 3. **Spoof-Resistant Without Clock Sync:** Because `nonce` is sent inside the packet and covered by `HMAC-SHA256`, no clock synchronization between laptop and phone is required.
+

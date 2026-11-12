@@ -76,3 +76,4 @@ public sealed class TrayIconService : IDisposable
         _loadedIcon.Dispose();
     }
 }
+
