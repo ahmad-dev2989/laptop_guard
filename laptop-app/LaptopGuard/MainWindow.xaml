@@ -1,0 +1,336 @@
+<Window x:Class="LaptopGuard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Laptop Guard"
+        Icon="pack://application:,,,/Assets/app.ico"
+        Width="960"
+        Height="700"
+        MinWidth="820"
+        MinHeight="580"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgMain}"
+        Foreground="{StaticResource TextPrimary}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Padding="16,14" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Width="46" Height="46" CornerRadius="10" ClipToBounds="True" Margin="0,0,14,0">
+                    <Image Source="pack://application:,,,/Assets/app_logo.png" Stretch="UniformToFill" />
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Laptop Guard" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                    <TextBlock Text="Permanent QR pairing + BLE proximity beacon for travel" FontSize="12.5" Foreground="{StaticResource TextSecondary}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#202531" BorderBrush="#32394A" BorderThickness="1" CornerRadius="16" Padding="12,6" Margin="0,0,10,0">
+                        <TextBlock x:Name="BatteryBadgeText" Text="Battery: --%" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+                    </Border>
+
+                    <Border x:Name="StatusPillBorder" Background="#252A36" BorderBrush="#3B4254" BorderThickness="1" CornerRadius="16" Padding="14,6">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#6B7280" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StatusPillText" Text="IDLE" FontSize="12" FontWeight="Bold" Foreground="#D1D5DB" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.15*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="0.95*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column: Travel Mode + Power + Telemetry -->
+                <StackPanel Grid.Column="0">
+
+                    <!-- Hero Travel Card -->
+                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Travel Protection" FontSize="15.5" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                            <TextBlock x:Name="BeaconStatusDescription"
+                                       Text="Idle — press Start Travel Mode before putting your laptop in your bag."
+                                       FontSize="12.5"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,14" />
+
+                            <!-- Bluetooth Warning Banner -->
+                            <Border x:Name="BluetoothWarningBanner"
+                                    Visibility="Collapsed"
+                                    Background="#2A1618"
+                                    BorderBrush="#991B1B"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="BluetoothWarningText"
+                                               Text="Windows Bluetooth is turned OFF."
+                                               Foreground="#FECACA"
+                                               FontSize="12.5"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,10,0" />
+                                    <Button Grid.Column="1"
+                                            Content="Bluetooth Settings"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Click="OpenBluetoothSettings_Click" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Start / Stop Travel Mode Button -->
+                            <Button x:Name="ToggleTravelButton"
+                                    Height="48"
+                                    FontSize="15"
+                                    FontWeight="Bold"
+                                    Foreground="White"
+                                    Cursor="Hand"
+                                    Click="ToggleTravelButton_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBorder"
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="10">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.92" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.82" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.5" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#EA580C" Offset="0" />
+                                        <GradientStop Color="#F59E0B" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                                Start Travel Mode
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Sleep & Bag Guard Card -->
+                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Sleep &amp; Bag Protection" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+
+                            <CheckBox x:Name="KeepAwakeCheckBox"
+                                      Content="Keep laptop awake while Travel Mode runs (screen can stay off)"
+                                      Checked="KeepAwakeCheckBox_Changed"
+                                      Unchecked="KeepAwakeCheckBox_Changed" />
+
+                            <CheckBox x:Name="MinimizeToTrayCheckBox"
+                                      Content="Minimize to system tray instead of exiting when closed"
+                                      Checked="MinimizeToTrayCheckBox_Changed"
+                                      Unchecked="MinimizeToTrayCheckBox_Changed" />
+
+                            <CheckBox x:Name="LaunchOnStartupCheckBox"
+                                      Content="Start Laptop Guard minimized when Windows signs in"
+                                      Checked="LaunchOnStartupCheckBox_Changed"
+                                      Unchecked="LaunchOnStartupCheckBox_Changed" />
+
+                            <Grid Margin="0,10,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0"
+                                        Content="Turn Screen Off Now"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="TurnScreenOff_Click" />
+
+                                <Button Grid.Column="2"
+                                        Content="Lid-Close Power Settings"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="OpenLidSettings_Click" />
+                            </Grid>
+
+                            <Border Background="#211D15" BorderBrush="#78350F" BorderThickness="1" CornerRadius="8" Padding="10">
+                                <TextBlock FontSize="11.5" Foreground="#FDE68A" TextWrapping="Wrap">
+                                    Windows pauses normal apps when the laptop fully sleeps. Use "Turn Screen Off Now" before travel, and if you close the lid inside your bag, set "When I close the lid" to "Do nothing" in Power Settings (watch for warmth/battery drain inside closed bags).
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Live Telemetry Card -->
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Live Beacon Telemetry" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                                <Button Grid.Column="1"
+                                        x:Name="CopyPayloadButton"
+                                        Content="Copy Hex"
+                                        Padding="10,4"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="CopyPayloadHex_Click" />
+                            </Grid>
+
+                            <Grid Margin="0,2,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Device ID:" Foreground="{StaticResource TextSecondary}" FontSize="12" />
+                                <TextBlock x:Name="TelemetryDeviceIdText" Grid.Column="1" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource TextPrimary}" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Nonce Rotations:" Foreground="{StaticResource TextSecondary}" FontSize="12" />
+                                <TextBlock x:Name="TelemetryRotationsText" Grid.Column="1" Text="0" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource TextPrimary}" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Last Broadcast:" Foreground="{StaticResource TextSecondary}" FontSize="12" />
+                                <TextBlock x:Name="TelemetryLastTimeText" Grid.Column="1" Text="Not started" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource TextPrimary}" />
+                            </Grid>
+
+                            <TextBlock Text="BLE Manufacturer Payload (0xFFFF, 23 bytes):" Foreground="{StaticResource TextSecondary}" FontSize="11.5" Margin="0,0,0,4" />
+                            <Border Background="#111318" BorderBrush="#262C38" BorderThickness="1" CornerRadius="6" Padding="8">
+                                <TextBlock x:Name="TelemetryPayloadHexText"
+                                           Text="—"
+                                           FontFamily="Consolas"
+                                           FontSize="11.5"
+                                           Foreground="#FBBF24"
+                                           TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Right Column: Permanent QR Pairing -->
+                <Border Grid.Column="2" Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Permanent Mobile Pairing" FontSize="15.5" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                        <TextBlock Text="Scan this QR code once in the Laptop Guard Android app to link this laptop permanently."
+                                   FontSize="12.5"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,14" />
+
+                        <!-- QR Display Box -->
+                        <Border Background="White"
+                                CornerRadius="14"
+                                Padding="14"
+                                HorizontalAlignment="Center"
+                                Margin="0,0,0,14">
+                            <Image x:Name="QrCodeImage"
+                                   Width="220"
+                                   Height="220"
+                                   RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                        </Border>
+
+                        <!-- Device Name Editor -->
+                        <TextBlock Text="Laptop Name (shown on your phone)" FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="DeviceNameTextBox"
+                                     Grid.Column="0"
+                                     Height="34"
+                                     Padding="10,6"
+                                     FontSize="13"
+                                     Background="#111318"
+                                     Foreground="{StaticResource TextPrimary}"
+                                     CaretBrush="{StaticResource AccentOrange}"
+                                     BorderBrush="#374151"
+                                     BorderThickness="1"
+                                     VerticalContentAlignment="Center" />
+
+                            <Button Grid.Column="2"
+                                    Content="Update Name"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="SaveDeviceName_Click" />
+                        </Grid>
+
+                        <!-- Manual Pairing Code -->
+                        <TextBlock Text="Manual Fallback Code (if camera unavailable)" FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
+                        <Border Background="#111318" BorderBrush="#2C3240" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                            <TextBox x:Name="ManualCodeTextBox"
+                                     IsReadOnly="True"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     FontFamily="Consolas"
+                                     FontSize="11.5"
+                                     Foreground="#D1D5DB"
+                                     TextWrapping="Wrap" />
+                        </Border>
+
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="CopyCodeButton"
+                                    Grid.Column="0"
+                                    Content="Copy Pairing Code"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="CopyManualCode_Click" />
+
+                            <Button Grid.Column="2"
+                                    Content="Reset QR Key"
+                                    Style="{StaticResource DangerOutlineButton}"
+                                    Click="ResetPairingKey_Click" />
+                        </Grid>
+
+                        <TextBlock x:Name="ProfilePathText"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextMuted}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</Window>

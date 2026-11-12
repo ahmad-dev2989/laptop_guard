@@ -1,0 +1,26 @@
+# Build artifacts
+bin/
+obj/
+out/
+publish/
+.vs/
+*.user
+*.suo
+*.cache
+TestResults/
+
+# Android / Gradle (for upcoming mobile app)
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.idea/
+
+# OS / IDE clutter
+.DS_Store
+Thumbs.db
+desktop.ini
